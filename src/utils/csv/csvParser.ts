@@ -11,6 +11,7 @@
  * Handles quoted fields, escaped characters, and BOM markers.
  */
 import Papa from 'papaparse';
+import { readFile } from 'fs/promises';
 
 export type CSVRow = Record<string, string>;
 export interface CSVData {
@@ -24,8 +25,7 @@ export interface CSVData {
  * @returns Parsed CSV data with headers and rows
  */
 export async function parseCSV(filePath: string): Promise<CSVData> {
-	const file = Bun.file(filePath);
-	const contents = await file.text();
+	const contents = await readFile(filePath, 'utf-8');
 
 	return parseCSVContent(contents);
 }
