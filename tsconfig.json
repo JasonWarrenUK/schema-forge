@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"lib": ["ESNext"],
+		"types": ["bun"],
+
+		"strict": true,
+		// Deferred, not overlooked: enabling this surfaces dozens of errors in
+		// registryBuilder and xmlGenerator that need real behaviour changes.
+		// Revisit alongside the engine correctness fixes.
+		"noUncheckedIndexedAccess": false,
+
+		// The package ships raw TypeScript. tsc is a typechecker here, never a
+		// build step, so emit is disabled outright.
+		"noEmit": true,
+
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": ["src/**/*.ts", "tests/**/*.ts"]
+}

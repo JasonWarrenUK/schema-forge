@@ -1,0 +1,54 @@
+{
+	"name": "@jasonwarrenuk/schema-forge",
+	"version": "0.1.0",
+	"description": "XSD-driven schema system for dynamic validation, XML generation and CSV-to-schema mapping",
+	"license": "MIT",
+	"author": "Jason Warren",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/JasonWarrenUK/schema-forge.git"
+	},
+	"homepage": "https://github.com/JasonWarrenUK/schema-forge#readme",
+	"bugs": {
+		"url": "https://github.com/JasonWarrenUK/schema-forge/issues"
+	},
+	"keywords": [
+		"xsd",
+		"xml",
+		"schema",
+		"validation",
+		"csv",
+		"typescript",
+		"bun"
+	],
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"types": "./src/index.ts",
+	"files": [
+		"src",
+		"README.md",
+		"LICENSE"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"engines": {
+		"bun": ">=1.3.0"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test"
+	},
+	"dependencies": {
+		"fast-xml-parser": "^5.3.3",
+		"papaparse": "^5.5.3"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.3.7",
+		"@types/papaparse": "^5.5.2",
+		"typescript": "^5.0.0",
+		"vitest": "^3.2.6"
+	}
+}
