@@ -5,7 +5,7 @@
 
 import { EMPTY_CONSTRAINTS } from '../../types/interpreterTypes';
 import type { SchemaConstraints } from '../../types/interpreterTypes';
-import type { RawXsdSimpleType } from '../schemaParser';
+import type { RawXsdSimpleType } from '../../schema/schemaParser';
 
 /**
  * Extract constraints from xs:restriction element

@@ -28,6 +28,10 @@ export interface RawXsdSimpleType {
 		'xs:maxLength'?: { '@_value': string };
 		'xs:minInclusive'?: { '@_value': string };
 		'xs:maxInclusive'?: { '@_value': string };
+		'xs:minExclusive'?: { '@_value': string };
+		'xs:maxExclusive'?: { '@_value': string };
+		'xs:totalDigits'?: { '@_value': string };
+		'xs:fractionDigits'?: { '@_value': string };
 		'xs:enumeration'?: { '@_value': string } | { '@_value': string }[];
 	};
 }

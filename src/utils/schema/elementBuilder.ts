@@ -9,7 +9,7 @@ import type {
 	NamedSimpleType,
 	SchemaConstraints,
 } from '../../types/interpreterTypes';
-import type { RawXsdElement } from '../schemaParser';
+import type { RawXsdElement } from '../../schema/schemaParser';
 import { EMPTY_CONSTRAINTS } from '../../types/interpreterTypes';
 import { parseCardinality } from './cardinality';
 import { extractConstraints } from './constraints';

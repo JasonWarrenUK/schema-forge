@@ -41,7 +41,7 @@ export function parseCSVContent(contents: string): CSVData {
 	const result = Papa.parse<CSVRow>(contents, {
 		header: true,
 		skipEmptyLines: true,
-		transformHeader: (header) => header.trim(),
+		transformHeader: (header: string): string => header.trim(),
 	});
 
 	if (result.errors.length > 0) {

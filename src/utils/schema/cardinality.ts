@@ -4,7 +4,7 @@
  */
 
 import type { Cardinality } from '../../types/interpreterTypes';
-import type { RawXsdElement } from '../schemaParser';
+import type { RawXsdElement } from '../../schema/schemaParser';
 import { DEFAULT_CARDINALITY } from '../../types/interpreterTypes';
 
 /**
