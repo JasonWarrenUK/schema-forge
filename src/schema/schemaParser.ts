@@ -13,6 +13,8 @@ import { XMLParser } from 'fast-xml-parser';
 export interface RawXsdElement {
 	'@_name': string;
 	'@_type'?: string; // xs:string, xs:int, or reference to named type
+	/** Reference to a globally declared element. Not supported; detected so it can be reported. */
+	'@_ref'?: string;
 	'@_minOccurs'?: string;
 	'@_maxOccurs'?: string;
 	'xs:simpleType'?: RawXsdSimpleType;
@@ -42,6 +44,16 @@ export interface RawXsdComplexType {
 	'xs:sequence'?: {
 		'xs:element'?: RawXsdElement | RawXsdElement[];
 	};
+	/* Content models schema-forge does not build. Modelled so they can be
+	   detected and reported rather than silently ignored. */
+	'xs:choice'?: unknown;
+	'xs:all'?: unknown;
+	'xs:group'?: unknown;
+	'xs:any'?: unknown;
+	'xs:complexContent'?: unknown;
+	'xs:simpleContent'?: unknown;
+	'xs:attribute'?: unknown;
+	'xs:attributeGroup'?: unknown;
 }
 
 /* <<--------------------------------------------------------------------->> */
@@ -54,6 +66,10 @@ export interface ParsedXsdRoot {
 		'xs:element'?: RawXsdElement | RawXsdElement[];
 		'xs:simpleType'?: RawXsdSimpleType | RawXsdSimpleType[];
 		'xs:complexType'?: RawXsdComplexType | RawXsdComplexType[];
+		/* Multi-document schemas. Detected so they can be reported: resolving
+		   them needs a file resolver, which buildSchemaRegistry does not take. */
+		'xs:include'?: unknown;
+		'xs:import'?: unknown;
 	};
 }
 

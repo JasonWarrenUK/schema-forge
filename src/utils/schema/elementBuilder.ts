@@ -16,6 +16,52 @@ import { extractConstraints } from './constraints';
 import { resolveBaseType } from './typeResolver';
 
 /**
+ * Content models and declarations schema-forge does not build, mapped to the
+ * message shown when one is encountered.
+ *
+ * Each of these previously produced an element with no children and no error,
+ * so the data was dropped and the caller had no way to tell. Failing at load
+ * is the honest signal that the schema is outside what this library handles.
+ */
+const UNSUPPORTED_COMPLEX_TYPE_MEMBERS: Array<[string, string]> = [
+	['xs:choice', 'xs:choice content models are not supported'],
+	['xs:all', 'xs:all content models are not supported'],
+	['xs:group', 'xs:group references are not supported'],
+	['xs:any', 'xs:any wildcards are not supported'],
+	['xs:complexContent', 'xs:complexContent and xs:extension are not supported'],
+	['xs:simpleContent', 'xs:simpleContent is not supported'],
+	['xs:attribute', 'xs:attribute declarations are not supported'],
+	['xs:attributeGroup', 'xs:attributeGroup references are not supported'],
+];
+
+const DOCS_HINT = 'See the Requirements and limitations section of the README.';
+
+/** Rejects an element whose declaration uses a construct that would be silently dropped. */
+function assertSupportedElement(rawElement: RawXsdElement, parentPath: string): void {
+	const label = rawElement['@_name']
+		? parentPath
+			? `${parentPath}.${rawElement['@_name']}`
+			: rawElement['@_name']
+		: parentPath || '(root)';
+
+	if (rawElement['@_ref']) {
+		throw new Error(
+			`Unsupported XSD construct at "${label}": xs:element ref="${rawElement['@_ref']}" is not supported. ${DOCS_HINT}`
+		);
+	}
+
+	const complexType = rawElement['xs:complexType'];
+	if (complexType) {
+		for (const [member, message] of UNSUPPORTED_COMPLEX_TYPE_MEMBERS) {
+			if (complexType[member as keyof typeof complexType] !== undefined) {
+				throw new Error(`Unsupported XSD construct at "${label}": ${message}. ${DOCS_HINT}`);
+			}
+		}
+	}
+
+}
+
+/**
  * Build a SchemaElement from a raw XSD element (recursive)
  * @param rawElement - Raw XSD element
  * @param parentPath - Parent element path (empty for root)
@@ -27,6 +73,8 @@ export function buildElement(
 	parentPath: string,
 	namedTypesMap: Map<string, NamedSimpleType>
 ): SchemaElement {
+	assertSupportedElement(rawElement, parentPath);
+
 	const name = rawElement['@_name'];
 	const path = parentPath ? `${parentPath}.${name}` : name;
 	const cardinality = parseCardinality(rawElement);
