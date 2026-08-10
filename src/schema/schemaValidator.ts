@@ -223,25 +223,47 @@ function validatePattern(
 ): SchemaValidationIssue | null {
 	const { rowIndex, sourceField } = options;
 
+	let regex: RegExp;
+
 	try {
-		const regex = new RegExp(`^${pattern}$`);
-		if (!regex.test(value)) {
-			return createIssue(
-				'pattern',
-				element.path,
-				`Field "${element.name}" value "${value}" does not match pattern "${pattern}"`,
-				{
-					rowIndex,
-					sourceField,
-					element,
-					actualValue: value,
-					constraint: { pattern },
-				}
-			);
-		}
+		// XSD patterns are implicitly anchored to the whole value. The group is
+		// required: bare `^...$` binds tighter than top-level alternation, so a
+		// facet of "M|F" would compile to (^M)|(F$) and accept "MALE".
+		regex = new RegExp(`^(?:${pattern})$`);
 	} catch {
-		// Invalid regex pattern - skip validation
-		return null;
+		// XSD's regex grammar is not a subset of JavaScript's: character-class
+		// subtraction and \p{IsBasicLatin} are legal XSD and throw here. Silently
+		// returning null read as "valid", so the constraint vanished with no
+		// diagnostic. Report it instead, as a warning rather than an error: the
+		// value may well be fine, we just cannot tell.
+		return createIssue(
+			'pattern',
+			element.path,
+			`Pattern "${pattern}" on field "${element.name}" could not be compiled, so it was not checked`,
+			{
+				severity: 'warning',
+				rowIndex,
+				sourceField,
+				element,
+				actualValue: value,
+				constraint: { pattern },
+			}
+		);
+	}
+
+	if (!regex.test(value)) {
+		return createIssue(
+			'pattern',
+			element.path,
+			`Field "${element.name}" value "${value}" does not match pattern "${pattern}"`,
+			{
+				rowIndex,
+				sourceField,
+				element,
+				actualValue: value,
+				constraint: { pattern },
+			}
+		);
 	}
 
 	return null;

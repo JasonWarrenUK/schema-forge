@@ -180,6 +180,28 @@ describe('validateValue', () => {
 
 			expect(issues[0].actualValue).toBe('123');
 		});
+
+		it('anchors the whole value when the pattern uses alternation', () => {
+			const element = createElement({ constraints: { pattern: 'M|F' } });
+
+			// `^M|F$` parses as `(^M)|(F$)`, so these all slipped through.
+			expect(validateValue('MALE', element)).toHaveLength(1);
+			expect(validateValue('FEMALE', element)).toHaveLength(1);
+			expect(validateValue('ZZF', element)).toHaveLength(1);
+
+			expect(validateValue('M', element)).toHaveLength(0);
+			expect(validateValue('F', element)).toHaveLength(0);
+		});
+
+		it('reports an unusable pattern instead of silently passing', () => {
+			const element = createElement({ constraints: { pattern: '[unclosed' } });
+
+			const issues = validateValue('anything', element);
+
+			expect(issues).toHaveLength(1);
+			expect(issues[0].severity).toBe('warning');
+			expect(issues[0].message).toMatch(/could not be compiled/i);
+		});
 	});
 
 	describe('length validation', () => {
