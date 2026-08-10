@@ -15,7 +15,6 @@ export interface GeneratorOptions {
 	namespace?: string;
 	/** Indentation spaces per level (default: 2) */
 	indent?: number;
-	validate?: boolean;
 }
 
 export interface GeneratorResult {
@@ -44,7 +43,6 @@ export function generateFromSchema(
 	const opts = {
 		namespace: options?.namespace ?? registry.namespace,
 		indent: options?.indent ?? 2,
-		validate: options?.validate ?? false,
 	};
 
 	const warnings: GeneratorWarning[] = [];
@@ -76,7 +74,7 @@ function generateElement(
 
 	const isRoot = depth === 0;
 	const openTag = isRoot
-		? `<${element.name} xmlns="${namespace}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">`
+		? `<${element.name} xmlns="${escapeXmlAttribute(namespace ?? '')}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">`
 		: `<${element.name}>`;
 
 	// If element has no children (leaf node), generate simple element
@@ -168,6 +166,19 @@ function generateLeafElement(
 		return ''; // Omit optional empty elements
 	}
 
+	// String() on an object yields "[object Object]" and on an array joins with
+	// commas, both of which were emitted as though they were real values. This
+	// is where a collapsed complex type lands, so a silent pass here disguises
+	// a structural problem upstream.
+	if (typeof data === 'object' || typeof data === 'symbol' || typeof data === 'function') {
+		warnings.push({
+			path: element.path,
+			message: `Expected a simple value for element "${element.name}", got ${Array.isArray(data) ? 'array' : typeof data}`,
+			value: data,
+		});
+		return '';
+	}
+
 	const value = escapeXml(String(data));
 	return `${indent}<${element.name}>${value}</${element.name}>`;
 }
@@ -182,4 +193,16 @@ function escapeXml(str: string): string {
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;')
 		.replace(/'/g, '&apos;');
+}
+
+/**
+ * Escape a value destined for an attribute.
+ *
+ * Attribute values were previously interpolated raw, so a namespace carrying
+ * an ampersand produced unparseable XML and one carrying a quote could close
+ * the attribute and inject further markup. The namespace is caller-supplied
+ * through GeneratorOptions, so it is never trusted.
+ */
+function escapeXmlAttribute(str: string): string {
+	return escapeXml(str);
 }

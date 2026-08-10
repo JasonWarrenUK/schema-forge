@@ -117,4 +117,35 @@ describe('generateFromSchema', () => {
 		expect(result.xml).toContain('    <Header>');
 		expect(result.xml).toContain('        <CollectionDetails>');
 	});
+
+	describe('escaping and malformed output', () => {
+		it('escapes special characters in the namespace attribute', () => {
+			const result = generateFromSchema(fixtures.minimalSchemaMessage, registry, {
+				namespace: 'urn:x?a=1&b=2',
+			});
+
+			expect(result.xml).toContain('xmlns="urn:x?a=1&amp;b=2"');
+			expect(result.xml).not.toContain('a=1&b=2"');
+		});
+
+		it('does not let a namespace break out of its attribute', () => {
+			const result = generateFromSchema(fixtures.minimalSchemaMessage, registry, {
+				namespace: 'urn:x" onload="evil',
+			});
+
+			expect(result.xml).not.toContain('onload="evil"');
+			expect(result.xml).toContain('&quot;');
+		});
+
+		it('warns instead of emitting [object Object] for a non-primitive leaf', () => {
+			const data = {
+				Header: { CollectionDetails: { Collection: { nested: 'object' } } },
+			};
+
+			const result = generateFromSchema(data, registry);
+
+			expect(result.xml).not.toContain('[object Object]');
+			expect(result.warnings.some((w) => /Collection/.test(w.path))).toBe(true);
+		});
+	});
 });
