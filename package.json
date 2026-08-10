@@ -1,6 +1,6 @@
 {
 	"name": "@jasonwarrenuk/schema-forge",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "XSD-driven schema system for dynamic validation, XML generation and CSV-to-schema mapping",
 	"license": "MIT",
 	"author": "Jason Warren",
@@ -29,6 +29,7 @@
 	"files": [
 		"src",
 		"README.md",
+		"CHANGELOG.md",
 		"LICENSE"
 	],
 	"publishConfig": {
