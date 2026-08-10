@@ -146,6 +146,48 @@ describe('validateValue', () => {
 			expect(issues).toHaveLength(1);
 			expect(issues[0].type).toBe('type');
 		});
+
+		it('rejects decimals with trailing garbage or non-finite values', () => {
+			const element = createElement({ baseType: 'decimal' });
+
+			// parseFloat stops at the first invalid character, so these parsed.
+			expect(validateValue('12abc', element)).toHaveLength(1);
+			expect(validateValue('1.5xyz', element)).toHaveLength(1);
+			expect(validateValue('Infinity', element)).toHaveLength(1);
+			expect(validateValue('1e5', element)).toHaveLength(1); // not valid xs:decimal
+
+			expect(validateValue('1.50', element)).toHaveLength(0);
+			expect(validateValue('+1.5', element)).toHaveLength(0);
+			expect(validateValue('-0.25', element)).toHaveLength(0);
+			expect(validateValue('.5', element)).toHaveLength(0);
+		});
+
+		it('rejects dates that match the shape but are not real days', () => {
+			const element = createElement({ baseType: 'date' });
+
+			// Date.parse rolls these over instead of rejecting them.
+			expect(validateValue('2024-02-31', element)).toHaveLength(1);
+			expect(validateValue('2023-02-29', element)).toHaveLength(1);
+			expect(validateValue('2023-04-31', element)).toHaveLength(1);
+
+			expect(validateValue('2024-02-29', element)).toHaveLength(0); // leap year
+			expect(validateValue('2023-02-28', element)).toHaveLength(0);
+		});
+
+		it('requires ISO 8601 shape for dateTime', () => {
+			const element = createElement({ baseType: 'dateTime' });
+
+			// Bare Date.parse accepted all of these. "3/4/2024" is the dangerous
+			// one: it silently resolves via US month-first convention.
+			expect(validateValue('Dec 25 2024', element)).toHaveLength(1);
+			expect(validateValue('3/4/2024', element)).toHaveLength(1);
+			expect(validateValue('2024', element)).toHaveLength(1);
+			expect(validateValue('2024-02-31T10:00:00', element)).toHaveLength(1);
+
+			expect(validateValue('2024-01-15T10:30:00', element)).toHaveLength(0);
+			expect(validateValue('2024-01-15T10:30:00Z', element)).toHaveLength(0);
+			expect(validateValue('2024-01-15T10:30:00.123+01:00', element)).toHaveLength(0);
+		});
 	});
 
 	describe('pattern validation', () => {

@@ -16,6 +16,39 @@ interface ValidateValueOptions {
 	sourceField?: string;
 }
 
+/**
+ * xs:decimal lexical space: an optional sign then digits with an optional
+ * fractional part. Exponent notation belongs to xs:double, not xs:decimal.
+ */
+const DECIMAL_LEXICAL = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
+
+/**
+ * ISO 8601 dateTime. Captures the date parts so the calendar can be checked
+ * separately; 24:00:00 is legal in XSD and permitted here.
+ */
+const DATETIME_LEXICAL =
+	/^(\d{4})-(\d{2})-(\d{2})T(?:([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.\d+)?|24:00:00(?:\.0+)?)(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)?$/;
+
+/**
+ * True when the parts describe a day that actually exists.
+ *
+ * A shape check alone is not enough: Date.parse rolls 2024-02-31 forward to
+ * 2 March rather than rejecting it, so impossible dates validated. Building
+ * the date and requiring every component to survive the round trip catches
+ * day-of-month overflow, which is the likelier data-entry error.
+ */
+function isRealCalendarDate(year: string, month: string, day: string): boolean {
+	const y = Number(year);
+	const m = Number(month);
+	const d = Number(day);
+
+	if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+
+	const date = new Date(Date.UTC(y, m - 1, d));
+
+	return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
 /* <<--------------------------------------------------------------------->> */
 
 /**
@@ -144,10 +177,23 @@ function validateType(
 			});
 
 		case 'decimal':
-			if (typeof value === 'number') return null;
+			if (typeof value === 'number') {
+				if (!Number.isFinite(value)) {
+					return createIssue(
+						'type',
+						element.path,
+						`Field "${element.name}" must be a decimal number, got ${value}`,
+						{ rowIndex, sourceField, element, actualValue: value }
+					);
+				}
+				return null;
+			}
 			if (typeof value === 'string') {
-				const parsed = parseFloat(value);
-				if (isNaN(parsed)) {
+				// Checked lexically rather than with parseFloat, which stops at the
+				// first invalid character and so accepted "12abc" and "Infinity".
+				// Exponent notation is deliberately rejected: it is valid xs:double
+				// but not xs:decimal.
+				if (!DECIMAL_LEXICAL.test(value.trim())) {
 					return createIssue(
 						'type',
 						element.path,
@@ -179,11 +225,8 @@ function validateType(
 
 		case 'date':
 			if (typeof value === 'string') {
-				// ISO date format: YYYY-MM-DD
-				if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-					const parsed = Date.parse(value);
-					if (!isNaN(parsed)) return null;
-				}
+				const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+				if (match && isRealCalendarDate(match[1], match[2], match[3])) return null;
 			}
 			return createIssue(
 				'type',
@@ -194,14 +237,16 @@ function validateType(
 
 		case 'dateTime':
 			if (typeof value === 'string') {
-				// ISO dateTime format
-				const parsed = Date.parse(value);
-				if (!isNaN(parsed)) return null;
+				// Date.parse alone accepted "Dec 25 2024" and "3/4/2024"; the latter
+				// resolves by US month-first convention, so a UK date silently became
+				// a different day. Require ISO 8601 shape, then check the calendar.
+				const match = DATETIME_LEXICAL.exec(value);
+				if (match && isRealCalendarDate(match[1], match[2], match[3])) return null;
 			}
 			return createIssue(
 				'type',
 				element.path,
-				`Field "${element.name}" must be a dateTime, got "${value}"`,
+				`Field "${element.name}" must be an ISO 8601 dateTime, got "${value}"`,
 				{ rowIndex, sourceField, element, actualValue: value }
 			);
 
