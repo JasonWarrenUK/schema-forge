@@ -11,6 +11,23 @@ export interface TransformMetadata {
 	category: 'type' | 'date' | 'string' | 'conditional';
 }
 
+/**
+ * Historic truncation length, inherited from the schema this engine was built
+ * against. Kept as the default so existing mappings are unaffected, but the
+ * length is a property of the target schema rather than of addresses, so
+ * prefer normalizeAddress(n) with the length your own schema requires.
+ */
+const DEFAULT_ADDRESS_LENGTH = 50;
+
+/** Trim, straighten curly quotes, and truncate to the given length. */
+function normalizeAddressTo(value: string, maxLength: number): string {
+	return value
+		.trim()
+		.replace(/[‘’]/g, "'")
+		.replace(/[“”]/g, '"')
+		.slice(0, maxLength);
+}
+
 export const TRANSFORMS: Record<string, TransformMetadata> = {
 	// === Type Conversions ===
 	stringToInt: {
@@ -39,6 +56,28 @@ export const TRANSFORMS: Record<string, TransformMetadata> = {
 		category: 'type',
 	},
 
+	stringToIntStrict: {
+		fn: (v: string) => {
+			const trimmed = v.trim();
+			if (!/^[+-]?\d+$/.test(trimmed)) return undefined;
+			return parseInt(trimmed, 10);
+		},
+		description: 'Convert to integer, or undefined if not a whole number',
+		example: "'0' → 0, '12abc' → undefined, 'invalid' → undefined",
+		category: 'type',
+	},
+
+	stringToFloatStrict: {
+		fn: (v: string) => {
+			const trimmed = v.trim();
+			if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(trimmed)) return undefined;
+			return parseFloat(trimmed);
+		},
+		description: 'Convert to number, or undefined if not numeric',
+		example: "'0' → 0, '1.5xyz' → undefined",
+		category: 'type',
+	},
+
 	stringToBoolean: {
 		fn: (v: string) => v.trim().toLowerCase() === 'true',
 		description: "Convert 'true'/'false' strings to boolean",
@@ -47,16 +86,32 @@ export const TRANSFORMS: Record<string, TransformMetadata> = {
 	},
 
 	// === Date/Time ===
+	passthroughDate: {
+		fn: (v: string) => v,
+		description: 'Pass a date through unchanged; performs no parsing or reformatting',
+		example: "'2025-01-28' → '2025-01-28', '28/01/2025' → '28/01/2025'",
+		category: 'date',
+	},
+
+	passthroughDateTime: {
+		fn: (v: string) => v,
+		description: 'Pass a datetime through unchanged; performs no parsing or reformatting',
+		example: "'2025-01-28T10:30:00Z' → '2025-01-28T10:30:00Z'",
+		category: 'date',
+	},
+
+	/** @deprecated Named for a conversion it never performed. Use passthroughDate. */
 	isoDate: {
 		fn: (v: string) => v,
-		description: 'Pass through ISO date string (YYYY-MM-DD)',
+		description: 'Deprecated alias for passthroughDate',
 		example: "'2025-01-28' → '2025-01-28'",
 		category: 'date',
 	},
 
+	/** @deprecated Named for a conversion it never performed. Use passthroughDateTime. */
 	isoDateTime: {
 		fn: (v: string) => v,
-		description: 'Pass through ISO datetime string',
+		description: 'Deprecated alias for passthroughDateTime',
 		example: "'2025-01-28T10:30:00Z' → '2025-01-28T10:30:00Z'",
 		category: 'date',
 	},
@@ -119,14 +174,8 @@ export const TRANSFORMS: Record<string, TransformMetadata> = {
 	},
 
 	normalizeAddress: {
-		fn: (v: string) => {
-			return v
-				.trim()
-				.replace(/[\u2018\u2019]/g, "'") // Curly single quotes (U+2018, U+2019) → straight quote
-				.replace(/[\u201C\u201D]/g, '"') // Curly double quotes (U+201C, U+201D) → straight
-				.slice(0, 50); // Truncate to max 50 chars
-		},
-		description: 'Normalize address: trim, fix quotes, truncate to 50 chars',
+		fn: (v: string) => normalizeAddressTo(v, DEFAULT_ADDRESS_LENGTH),
+		description: `Normalise address: trim, fix quotes, truncate to ${DEFAULT_ADDRESS_LENGTH} chars. Use normalizeAddress(n) for a different length`,
 		example: "'123 St Stephen's Rd' → '123 St Stephen's Rd'",
 		category: 'string',
 	},
@@ -180,6 +229,14 @@ export function getTransform(transformStr: string): TransformMetadata['fn'] {
 	const { name, args } = parseTransform(transformStr);
 
 	// Handle parameterized transforms
+	if (name === 'normalizeAddress' && args.length > 0) {
+		const maxLength = Number(args[0]);
+		if (!Number.isInteger(maxLength) || maxLength < 1) {
+			throw new Error(`normalizeAddress() expects a positive integer, got "${args[0]}"`);
+		}
+		return (v: string) => normalizeAddressTo(v, maxLength);
+	}
+
 	if (name === 'constant') {
 		if (args.length === 0) {
 			throw new Error('constant() transform requires an argument');

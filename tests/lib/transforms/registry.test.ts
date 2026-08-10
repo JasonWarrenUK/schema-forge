@@ -185,5 +185,51 @@ describe('transforms/registry', () => {
                           expect(() => getTransform('constant()')).toThrow(/requires an argument/);
                   });
           });
+
+          describe('strict numeric transforms', () => {
+                  it('distinguishes invalid input from a genuine zero', () => {
+                          const toInt = getTransform('stringToIntStrict');
+
+                          expect(toInt('0')).toBe(0);
+                          expect(toInt('42')).toBe(42);
+                          expect(toInt('invalid')).toBeUndefined();
+                          expect(toInt('12abc')).toBeUndefined();
+                          expect(toInt('')).toBeUndefined();
+                  });
+
+                  it('does the same for floats', () => {
+                          const toFloat = getTransform('stringToFloatStrict');
+
+                          expect(toFloat('0')).toBe(0);
+                          expect(toFloat('1.5')).toBe(1.5);
+                          expect(toFloat('1.5xyz')).toBeUndefined();
+                          expect(toFloat('nonsense')).toBeUndefined();
+                  });
+          });
+
+          describe('parameterised normalizeAddress', () => {
+                  it('truncates to the given length', () => {
+                          const long = 'x'.repeat(80);
+
+                          expect(getTransform('normalizeAddress(30)')(long)).toHaveLength(30);
+                          expect(getTransform('normalizeAddress(100)')(long)).toHaveLength(80);
+                  });
+
+                  it('keeps the historical 50-character default', () => {
+                          expect(getTransform('normalizeAddress')('x'.repeat(80))).toHaveLength(50);
+                  });
+          });
+
+          describe('passthrough date transforms', () => {
+                  it('exposes the honest names', () => {
+                          expect(getTransform('passthroughDate')('28/01/2025')).toBe('28/01/2025');
+                          expect(getTransform('passthroughDateTime')('whatever')).toBe('whatever');
+                  });
+
+                  it('keeps the old names working', () => {
+                          expect(getTransform('isoDate')('2025-01-28')).toBe('2025-01-28');
+                          expect(getTransform('isoDateTime')('2025-01-28T10:30:00Z')).toBe('2025-01-28T10:30:00Z');
+                  });
+          });
   });
 });
