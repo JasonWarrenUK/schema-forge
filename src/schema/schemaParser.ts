@@ -24,6 +24,7 @@ export interface RawXsdSimpleType {
 	'xs:restriction'?: {
 		'@_base': string; // xs:string, xs:int, etc.
 		'xs:pattern'?: { '@_value': string } | { '@_value': string }[];
+		'xs:length'?: { '@_value': string };
 		'xs:minLength'?: { '@_value': string };
 		'xs:maxLength'?: { '@_value': string };
 		'xs:minInclusive'?: { '@_value': string };

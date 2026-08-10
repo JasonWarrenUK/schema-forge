@@ -12,8 +12,11 @@ export type SchemaValidationSeverity = 'error' | 'warning' | 'info';
 export type ConstraintViolationType =
 	| 'required' // minOccurs >= 1 but element missing
 	| 'pattern' // value doesn't match regex pattern
+	| 'length' // string not exactly the required length
 	| 'minLength' // string too short
 	| 'maxLength' // string too long
+	| 'totalDigits' // more significant digits than permitted
+	| 'fractionDigits' // more fractional digits than permitted
 	| 'minInclusive' // number below minimum
 	| 'maxInclusive' // number above maximum
 	| 'minExclusive' // number at or below minimum

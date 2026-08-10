@@ -27,6 +27,9 @@ export function extractConstraints(
 		constraints.pattern = patterns[0]['@_value'];
 	}
 
+	if (restriction['xs:length']) {
+		constraints.length = parseInt(restriction['xs:length']['@_value'], 10);
+	}
 	if (restriction['xs:minLength']) {
 		constraints.minLength = parseInt(restriction['xs:minLength']['@_value'], 10);
 	}

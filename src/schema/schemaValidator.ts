@@ -114,6 +114,18 @@ export function validateValue(
 		if (Number.isFinite(numericValue)) {
 			issues.push(...validateRange(numericValue, constraints, element, options));
 		}
+
+		// Digit facets count the written form, so they are checked against the
+		// lexical value rather than the parsed number: 1.2300 has two significant
+		// fraction digits, not four.
+		issues.push(
+			...validateDigits(
+				typeof trimmedValue === 'string' ? trimmedValue : String(trimmedValue),
+				constraints,
+				element,
+				options
+			)
+		);
 	} else {
 		const stringValue = typeof trimmedValue === 'string' ? trimmedValue : String(trimmedValue);
 
@@ -327,6 +339,76 @@ function validatePattern(
 /**
  * Validate string length constraints
  */
+/**
+ * Validates xs:totalDigits and xs:fractionDigits.
+ *
+ * Both count the lexical form, so the check works on the written string and
+ * not the parsed number. Leading zeros in the integer part and trailing zeros
+ * in the fraction are not significant, so "0012.3400" is four total digits.
+ */
+function validateDigits(
+	value: string,
+	constraints: SchemaConstraints,
+	element: SchemaElement,
+	options: ValidateValueOptions
+): SchemaValidationIssue[] {
+	const { rowIndex, sourceField } = options;
+	const issues: SchemaValidationIssue[] = [];
+
+	if (constraints.totalDigits === undefined && constraints.fractionDigits === undefined) {
+		return issues;
+	}
+
+	// Only meaningful for values that are lexically decimal; validateType has
+	// already reported anything that is not.
+	if (!DECIMAL_LEXICAL.test(value.trim())) return issues;
+
+	const unsigned = value.trim().replace(/^[+-]/, '');
+	const [integerPart = '', fractionPart = ''] = unsigned.split('.');
+
+	const significantInteger = integerPart.replace(/^0+/, '');
+	const significantFraction = fractionPart.replace(/0+$/, '');
+
+	const fractionDigits = significantFraction.length;
+	const totalDigits = significantInteger.length + fractionDigits;
+
+	if (constraints.totalDigits !== undefined && totalDigits > constraints.totalDigits) {
+		issues.push(
+			createIssue(
+				'totalDigits',
+				element.path,
+				`Field "${element.name}" must have at most ${constraints.totalDigits} digits, got ${totalDigits}`,
+				{
+					rowIndex,
+					sourceField,
+					element,
+					actualValue: value,
+					constraint: { totalDigits: constraints.totalDigits },
+				}
+			)
+		);
+	}
+
+	if (constraints.fractionDigits !== undefined && fractionDigits > constraints.fractionDigits) {
+		issues.push(
+			createIssue(
+				'fractionDigits',
+				element.path,
+				`Field "${element.name}" must have at most ${constraints.fractionDigits} decimal places, got ${fractionDigits}`,
+				{
+					rowIndex,
+					sourceField,
+					element,
+					actualValue: value,
+					constraint: { fractionDigits: constraints.fractionDigits },
+				}
+			)
+		);
+	}
+
+	return issues;
+}
+
 function validateLength(
 	value: string,
 	constraints: SchemaConstraints,
@@ -336,12 +418,33 @@ function validateLength(
 	const { rowIndex, sourceField } = options;
 	const issues: SchemaValidationIssue[] = [];
 
-	if (constraints.minLength !== undefined && value.length < constraints.minLength) {
+	// XSD counts characters; String.length counts UTF-16 code units, so any
+	// value outside the BMP was measured at roughly double its real length.
+	const length = [...value].length;
+
+	if (constraints.length !== undefined && length !== constraints.length) {
+		issues.push(
+			createIssue(
+				'length',
+				element.path,
+				`Field "${element.name}" must be exactly ${constraints.length} characters, got ${length}`,
+				{
+					rowIndex,
+					sourceField,
+					element,
+					actualValue: value,
+					constraint: { length: constraints.length },
+				}
+			)
+		);
+	}
+
+	if (constraints.minLength !== undefined && length < constraints.minLength) {
 		issues.push(
 			createIssue(
 				'minLength',
 				element.path,
-				`Field "${element.name}" must be at least ${constraints.minLength} characters, got ${value.length}`,
+				`Field "${element.name}" must be at least ${constraints.minLength} characters, got ${length}`,
 				{
 					rowIndex,
 					sourceField,
@@ -353,12 +456,12 @@ function validateLength(
 		);
 	}
 
-	if (constraints.maxLength !== undefined && value.length > constraints.maxLength) {
+	if (constraints.maxLength !== undefined && length > constraints.maxLength) {
 		issues.push(
 			createIssue(
 				'maxLength',
 				element.path,
-				`Field "${element.name}" must be at most ${constraints.maxLength} characters, got ${value.length}`,
+				`Field "${element.name}" must be at most ${constraints.maxLength} characters, got ${length}`,
 				{
 					rowIndex,
 					sourceField,

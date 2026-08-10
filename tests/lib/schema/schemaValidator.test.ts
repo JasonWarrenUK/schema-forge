@@ -293,6 +293,72 @@ describe('validateValue', () => {
 		});
 	});
 
+	describe('digit facets', () => {
+		it('enforces totalDigits on the lexical form', () => {
+			const element = createElement({
+				baseType: 'decimal',
+				constraints: { totalDigits: 4 },
+			});
+
+			expect(validateValue('12345', element)).toHaveLength(1);
+			expect(validateValue('123.45', element)).toHaveLength(1);
+			expect(validateValue('1234', element)).toHaveLength(0);
+			expect(validateValue('12.34', element)).toHaveLength(0);
+			// Leading and trailing zeros are not significant digits.
+			expect(validateValue('0012.3400', element)).toHaveLength(0);
+			expect(validateValue('-12.34', element)).toHaveLength(0);
+		});
+
+		it('enforces fractionDigits on the lexical form', () => {
+			const element = createElement({
+				baseType: 'decimal',
+				constraints: { fractionDigits: 2 },
+			});
+
+			expect(validateValue('1.234', element)).toHaveLength(1);
+			expect(validateValue('1.23', element)).toHaveLength(0);
+			expect(validateValue('1.2', element)).toHaveLength(0);
+			expect(validateValue('1', element)).toHaveLength(0);
+			expect(validateValue('1.2300', element)).toHaveLength(0);
+		});
+	});
+
+	describe('exact length facet', () => {
+		it('enforces xs:length', () => {
+			const element = createElement({ constraints: { length: 5 } });
+
+			expect(validateValue('abcd', element)).toHaveLength(1);
+			expect(validateValue('abcdef', element)).toHaveLength(1);
+			expect(validateValue('abcde', element)).toHaveLength(0);
+		});
+	});
+
+	describe('length counting', () => {
+		it('counts characters rather than UTF-16 code units', () => {
+			const element = createElement({ constraints: { maxLength: 5 } });
+
+			// '👍'.length is 2, so five of them measured as 10 and were rejected.
+			expect(validateValue('👍👍👍👍👍', element)).toHaveLength(0);
+			expect(validateValue('👍👍👍👍👍👍', element)).toHaveLength(1);
+		});
+
+		it('reports the character count in the message', () => {
+			const element = createElement({ constraints: { maxLength: 2 } });
+
+			const issues = validateValue('👍👍👍', element);
+
+			expect(issues).toHaveLength(1);
+			expect(issues[0].message).toContain('got 3');
+		});
+
+		it('does not under-count for minLength either', () => {
+			const element = createElement({ constraints: { minLength: 5 } });
+
+			// Three emoji measured as 6 code units, so this wrongly passed.
+			expect(validateValue('👍👍👍', element)).toHaveLength(1);
+		});
+	});
+
 	describe('range validation on string values', () => {
 		// CSV rows are Record<string, string>, so unless a mapping configures a
 		// numeric transform every value arrives here as a string. The range

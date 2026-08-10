@@ -21,6 +21,7 @@ export type XsdBaseType =
 
 export interface SchemaConstraints {
 	pattern?: string /* from xs:pattern */;
+	length?: number /* from xs:length */;
 	minLength?: number /* from xs:minLength */;
 	maxLength?: number /* from xs:maxLength */;
 	minInclusive?: number /* from xs:minInclusive */;
