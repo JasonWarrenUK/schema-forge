@@ -37,9 +37,22 @@ export function mapCsvToSchema(
 }
 
 /**
+ * Path segments that reach the prototype chain rather than an own property.
+ * Writing through any of these escapes the result object and mutates shared
+ * state, so they are rejected outright rather than sanitised.
+ */
+const UNSAFE_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
  * - Sets a value in a nested object using dot notation path
  * - Creates intermediate objects as needed
  * - Uses registry to determine if an element should be an array
+ *
+ * Mapping configurations are data, often loaded from disk or supplied by a
+ * user, so every segment is checked against the schema before it is written.
+ *
+ * @throws If a segment is unsafe, the path is absent from the schema, or the
+ * path collides with a value already written by an earlier mapping.
  *
  * @example
  * setNestedValue({}, "Root.Parent.Field", "12345", registry)
@@ -52,6 +65,17 @@ function setNestedValue(
 	registry: SchemaRegistry
 ): void {
 	const parts = path.split('.');
+
+	for (const part of parts) {
+		if (UNSAFE_SEGMENTS.has(part)) {
+			throw new Error(`Unsafe path segment "${part}" in xsdPath "${path}"`);
+		}
+	}
+
+	if (!registry.elementsByPath.has(path)) {
+		throw new Error(`Path "${path}" not found in schema`);
+	}
+
 	let current = obj;
 	let currentPath = '';
 
@@ -63,21 +87,40 @@ function setNestedValue(
 		const repeatable = element ? isRepeatable(element) : false;
 
 		if (repeatable) {
-			if (!(part in current)) {
+			if (!Object.hasOwn(current, part)) {
 				current[part] = [{}];
 			}
-			// For CSV mapping, we currently assume a single repeatable item per row
-			// We reuse the first element in the array to build up the complex object
-			const arr = current[part] as Record<string, unknown>[];
-			current = arr[0];
+			const existing = current[part];
+			if (!Array.isArray(existing)) {
+				throw new Error(
+					`Path conflict at "${currentPath}": "${path}" expects a repeatable element, but a value was already mapped there`
+				);
+			}
+			current = existing[0] as Record<string, unknown>;
 		} else {
-			if (!(part in current)) {
+			if (!Object.hasOwn(current, part)) {
 				current[part] = {};
 			}
-			current = current[part] as Record<string, unknown>;
+			const existing = current[part];
+			if (typeof existing !== 'object' || existing === null || Array.isArray(existing)) {
+				throw new Error(
+					`Path conflict at "${currentPath}": "${path}" descends through it, but a scalar value was already mapped there`
+				);
+			}
+			current = existing as Record<string, unknown>;
 		}
 	}
 
 	const lastPart = parts[parts.length - 1];
+
+	// Writing a scalar over an object built by an earlier, deeper mapping would
+	// silently discard it.
+	const existingLeaf = current[lastPart];
+	if (Object.hasOwn(current, lastPart) && typeof existingLeaf === 'object' && existingLeaf !== null) {
+		throw new Error(
+			`Path conflict at "${path}": a nested value was already mapped there by a deeper path`
+		);
+	}
+
 	current[lastPart] = value;
 }

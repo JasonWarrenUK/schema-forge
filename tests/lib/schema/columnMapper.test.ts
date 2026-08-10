@@ -111,4 +111,54 @@ describe('columnMapper', () => {
 		});
 	});
 
+	describe('malicious and malformed paths', () => {
+		it('should reject a path segment that reaches the prototype chain', () => {
+			expect(() =>
+				mapCsvToSchema({ evil: 'PWNED' }, [{ csvColumn: 'evil', xsdPath: 'Message.__proto__.polluted' }], registry)
+			).toThrow(/unsafe path segment/i);
+
+			expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+		});
+
+		it('should reject the constructor.prototype route as well', () => {
+			expect(() =>
+				mapCsvToSchema(
+					{ evil: 'PWNED' },
+					[{ csvColumn: 'evil', xsdPath: 'Message.constructor.prototype.polluted2' }],
+					registry
+				)
+			).toThrow(/unsafe path segment/i);
+
+			expect(({} as Record<string, unknown>).polluted2).toBeUndefined();
+		});
+
+		it('should reject a path that is not present in the schema', () => {
+			expect(() =>
+				mapCsvToSchema({ v: 'x' }, [{ csvColumn: 'v', xsdPath: 'Message.NoSuchElement.Field' }], registry)
+			).toThrow(/not found in schema/i);
+		});
+
+		it('should throw when a scalar is mapped where a later path descends', () => {
+			// Both paths exist in the schema, so this is a genuine collision rather
+			// than a typo: "Message" is written as a scalar, then "Message.Header"
+			// tries to descend through it.
+			const mappings = [
+				{ csvColumn: 'a', xsdPath: 'Message' },
+				{ csvColumn: 'b', xsdPath: 'Message.Header' },
+			];
+
+			expect(() => mapCsvToSchema({ a: '1', b: '2' }, mappings, registry)).toThrow(/conflict/i);
+		});
+
+		it('should throw rather than silently drop when the collision is reversed', () => {
+			// Previously this overwrote the nested object with the scalar and
+			// returned successfully, losing everything mapped underneath it.
+			const mappings = [
+				{ csvColumn: 'b', xsdPath: 'Message.Header' },
+				{ csvColumn: 'a', xsdPath: 'Message' },
+			];
+
+			expect(() => mapCsvToSchema({ a: '1', b: '2' }, mappings, registry)).toThrow(/conflict/i);
+		});
+	});
 });
