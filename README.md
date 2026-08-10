@@ -84,7 +84,7 @@ Generation always produces output. Missing required elements and type mismatches
 | Feature | Details |
 |---|---|
 | Base types | `string`, `int`, `integer`, `long`, `decimal`, `date`, `dateTime`, `boolean` |
-| Constraints | `pattern`, `minLength`, `maxLength`, `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive`, `enumeration` |
+| Constraints | `pattern`, `length`, `minLength`, `maxLength`, `minInclusive`, `maxInclusive`, `minExclusive`, `maxExclusive`, `totalDigits`, `fractionDigits`, `enumeration` |
 | Complex types | `xs:sequence` with nested elements |
 | Cardinality | `minOccurs`, `maxOccurs` (including `unbounded`) |
 | Named types | Simple type reuse and inheritance |
@@ -98,29 +98,34 @@ The parser expects a specific XSD shape and throws when it is not met:
 - Exactly one top-level element
 - A `targetNamespace` must be present
 
-The following are **not** supported, and are currently dropped silently rather than raising an error:
+The following are **not** supported. `buildSchemaRegistry` throws when it meets one, naming the construct and the element path, rather than building a registry with the content silently missing:
 
-- `xs:choice`, `xs:all`, `xs:any`
+- `xs:choice`, `xs:all`, `xs:group`, `xs:any`
 - `xs:complexContent` / `xs:extension`, `xs:simpleContent`
-- `xs:attribute`
+- `xs:attribute`, `xs:attributeGroup`
+- `xs:element ref`
 - `xs:include`, `xs:import` (single-document schemas only)
 - Named `xs:complexType` references (inline `xs:complexType` only)
 
-`totalDigits` and `fractionDigits` are parsed into constraints but not yet enforced. Only the first `xs:pattern` on a restriction is honoured.
+Only the first `xs:pattern` on a restriction is honoured. A pattern that cannot be compiled as a JavaScript regex produces a warning-severity issue rather than being skipped, since XSD's regex grammar is not a subset of JavaScript's.
 
 ## Built-in transforms
 
-17 named transforms, plus parameterised `constant(value)`.
+21 named transforms, plus parameterised `constant(value)` and `normalizeAddress(n)`.
 
-**Type conversions:** `stringToInt`, `stringToIntOptional`, `stringToFloat`, `stringToBoolean`, `boolToInt`
+**Type conversions:** `stringToInt`, `stringToIntOptional`, `stringToIntStrict`, `stringToFloat`, `stringToFloatStrict`, `stringToBoolean`, `boolToInt`
 
 **String:** `trim`, `uppercase`, `lowercase`, `uppercaseTrim`, `uppercaseNoSpaces`, `postcode`, `removeSpaces`, `digitsOnly`, `normalizeAddress`
 
-**Date/time:** `isoDate`, `isoDateTime` (currently pass-through, no format conversion)
+**Date/time:** `passthroughDate`, `passthroughDateTime`
 
 **Conditional:** `nullIfEmpty`
 
-Some transforms carry assumptions inherited from their original use: `normalizeAddress` truncates to 50 characters, and `digitsOnly` strips a leading `+`.
+Prefer the `Strict` variants for numeric conversion. `stringToInt` and `stringToFloat` are `parseInt(v, 10) || 0`, so a genuine `"0"` and unparseable input both yield `0`; the strict variants return `undefined` instead.
+
+`isoDate` and `isoDateTime` are deprecated aliases for the passthrough transforms. Neither ever parsed or reformatted anything, and the names implied otherwise.
+
+Two transforms carry assumptions from their original use: `normalizeAddress` defaults to truncating at 50 characters (pass `normalizeAddress(n)` for your own schema's limit), and `digitsOnly` strips a leading `+`, which loses an international dialling prefix.
 
 ## Provenance
 
