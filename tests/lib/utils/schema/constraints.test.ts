@@ -121,4 +121,35 @@ describe('extractConstraints', () => {
 			maxLength: 6,
 		});
 	});
+
+	it('preserves the fractional part of range facets', () => {
+		const restriction: RawXsdSimpleType['xs:restriction'] = {
+			'@_base': 'xs:decimal',
+			'xs:minInclusive': { '@_value': '0.5' },
+			'xs:maxInclusive': { '@_value': '99.5' },
+			'xs:minExclusive': { '@_value': '-1.25' },
+			'xs:maxExclusive': { '@_value': '100.75' },
+		};
+
+		// parseInt truncated these, so a schema bounded at 99.5 rejected 99.5.
+		expect(extractConstraints(restriction)).toEqual({
+			minInclusive: 0.5,
+			maxInclusive: 99.5,
+			minExclusive: -1.25,
+			maxExclusive: 100.75,
+		});
+	});
+
+	it('keeps digit facets as integers', () => {
+		const restriction: RawXsdSimpleType['xs:restriction'] = {
+			'@_base': 'xs:decimal',
+			'xs:totalDigits': { '@_value': '5' },
+			'xs:fractionDigits': { '@_value': '2' },
+		};
+
+		expect(extractConstraints(restriction)).toEqual({
+			totalDigits: 5,
+			fractionDigits: 2,
+		});
+	});
 });

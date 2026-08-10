@@ -34,17 +34,20 @@ export function extractConstraints(
 		constraints.maxLength = parseInt(restriction['xs:maxLength']['@_value'], 10);
 	}
 
+	// Range facets bound a value, so they carry the value's precision:
+	// maxInclusive="99.5" truncated to 99 wrongly rejects 99.5. The digit and
+	// length facets below are counts, so parseInt is correct for those.
 	if (restriction['xs:minInclusive']) {
-		constraints.minInclusive = parseInt(restriction['xs:minInclusive']['@_value'], 10);
+		constraints.minInclusive = parseFloat(restriction['xs:minInclusive']['@_value']);
 	}
 	if (restriction['xs:maxInclusive']) {
-		constraints.maxInclusive = parseInt(restriction['xs:maxInclusive']['@_value'], 10);
+		constraints.maxInclusive = parseFloat(restriction['xs:maxInclusive']['@_value']);
 	}
 	if (restriction['xs:minExclusive']) {
-		constraints.minExclusive = parseInt(restriction['xs:minExclusive']['@_value'], 10);
+		constraints.minExclusive = parseFloat(restriction['xs:minExclusive']['@_value']);
 	}
 	if (restriction['xs:maxExclusive']) {
-		constraints.maxExclusive = parseInt(restriction['xs:maxExclusive']['@_value'], 10);
+		constraints.maxExclusive = parseFloat(restriction['xs:maxExclusive']['@_value']);
 	}
 
 	if (restriction['xs:totalDigits']) {
