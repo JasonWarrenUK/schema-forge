@@ -128,4 +128,8 @@ export function isEffectivelyRequired(
 }
 
 export const DEFAULT_CARDINALITY: Cardinality = { min: 1, max: 1 };
-export const EMPTY_CONSTRAINTS: SchemaConstraints = {};
+/**
+ * Frozen so it cannot become shared mutable state. Anywhere an element needs
+ * its own constraints, spread this rather than assigning it by reference.
+ */
+export const EMPTY_CONSTRAINTS: SchemaConstraints = Object.freeze({});

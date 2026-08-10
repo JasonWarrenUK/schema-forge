@@ -15,7 +15,7 @@ import type { RawXsdSimpleType } from '../../schema/schemaParser';
 export function extractConstraints(
 	restriction?: RawXsdSimpleType['xs:restriction']
 ): SchemaConstraints {
-	if (!restriction) return EMPTY_CONSTRAINTS;
+	if (!restriction) return { ...EMPTY_CONSTRAINTS };
 
 	const constraints: SchemaConstraints = {};
 

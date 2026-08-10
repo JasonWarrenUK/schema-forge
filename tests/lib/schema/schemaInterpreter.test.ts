@@ -57,5 +57,9 @@ describe('Constants', () => {
 		it('is an empty object', () => {
 			expect(EMPTY_CONSTRAINTS).toEqual({});
 		});
+
+		it('is frozen, so it cannot be mutated into shared state', () => {
+			expect(Object.isFrozen(EMPTY_CONSTRAINTS)).toBe(true);
+		});
 	});
 });

@@ -213,4 +213,22 @@ describe('populateLookupMaps', () => {
 		expect(elementsByName.get('Field')).toHaveLength(2);
 		expect(elementsByName.get('Field')).toEqual([child1, child2]);
 	});
+
+	it('gives each complex element its own constraints object', () => {
+		const makeComplex = (name: string): RawXsdElement => ({
+			'@_name': name,
+			'xs:complexType': {
+				'xs:sequence': {
+					'xs:element': { '@_name': 'Leaf', '@_type': 'xs:string' },
+				},
+			},
+		});
+
+		const first = buildElement(makeComplex('First'), '', new Map());
+		const second = buildElement(makeComplex('Second'), '', new Map());
+
+		// Previously every complex element shared one EMPTY_CONSTRAINTS instance,
+		// so mutating one element's constraints changed every other element's.
+		expect(first.constraints).not.toBe(second.constraints);
+	});
 });

@@ -70,7 +70,7 @@ export function buildElement(
 			name,
 			path,
 			baseType: 'string',
-			constraints: EMPTY_CONSTRAINTS,
+			constraints: { ...EMPTY_CONSTRAINTS },
 			cardinality,
 			children,
 			isComplex: true,
