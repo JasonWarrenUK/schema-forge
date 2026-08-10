@@ -22,6 +22,13 @@ interface ValidateValueOptions {
  */
 const DECIMAL_LEXICAL = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
 
+const NUMERIC_TYPES = new Set<XsdBaseType>(['int', 'integer', 'long', 'decimal']);
+
+/** Whether the schema declares this element as numeric, regardless of how the caller passed the value. */
+function isNumericType(baseType: XsdBaseType): boolean {
+	return NUMERIC_TYPES.has(baseType);
+}
+
 /**
  * ISO 8601 dateTime. Captures the date parts so the calendar can be checked
  * separately; 24:00:00 is legal in XSD and permitted here.
@@ -95,31 +102,32 @@ export function validateValue(
 	// Apply constraint validators
 	const constraints = element.constraints;
 
-	// String constraints
-	if (typeof trimmedValue === 'string') {
+	// Which facets apply is a property of the schema, not of how the caller
+	// happened to represent the value. Branching on `typeof` meant range facets
+	// never ran for CSV data, which is always strings, unless a mapping
+	// configured a numeric transform.
+	if (isNumericType(element.baseType)) {
+		const numericValue = typeof trimmedValue === 'number' ? trimmedValue : Number(trimmedValue);
+
+		// validateType has already run, so a non-finite value here would mean an
+		// unvalidated code path rather than bad user input.
+		if (Number.isFinite(numericValue)) {
+			issues.push(...validateRange(numericValue, constraints, element, options));
+		}
+	} else {
+		const stringValue = typeof trimmedValue === 'string' ? trimmedValue : String(trimmedValue);
+
 		if (constraints.pattern) {
-			const patternIssue = validatePattern(trimmedValue, constraints.pattern, element, options);
+			const patternIssue = validatePattern(stringValue, constraints.pattern, element, options);
 			if (patternIssue) issues.push(patternIssue);
 		}
 
-		const lengthIssues = validateLength(trimmedValue, constraints, element, options);
-		issues.push(...lengthIssues);
+		issues.push(...validateLength(stringValue, constraints, element, options));
 
 		if (constraints.enumeration) {
-			const enumIssue = validateEnumeration(
-				trimmedValue,
-				constraints.enumeration,
-				element,
-				options
-			);
+			const enumIssue = validateEnumeration(stringValue, constraints.enumeration, element, options);
 			if (enumIssue) issues.push(enumIssue);
 		}
-	}
-
-	// Numeric constraints
-	if (typeof trimmedValue === 'number') {
-		const rangeIssues = validateRange(trimmedValue, constraints, element, options);
-		issues.push(...rangeIssues);
 	}
 
 	return issues;

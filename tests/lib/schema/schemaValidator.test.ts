@@ -293,6 +293,48 @@ describe('validateValue', () => {
 		});
 	});
 
+	describe('range validation on string values', () => {
+		// CSV rows are Record<string, string>, so unless a mapping configures a
+		// numeric transform every value arrives here as a string. The range
+		// checks used to be gated on `typeof value === 'number'`, so they simply
+		// did not run: identical XSD facets validated differently depending on
+		// mapping configuration.
+		it('enforces range facets on numeric strings', () => {
+			const element = createElement({
+				baseType: 'int',
+				constraints: { minInclusive: 0, maxInclusive: 120 },
+			});
+
+			expect(validateValue('999', element)).toHaveLength(1);
+			expect(validateValue('-1', element)).toHaveLength(1);
+			expect(validateValue('42', element)).toHaveLength(0);
+			expect(validateValue('0', element)).toHaveLength(0);
+			expect(validateValue('120', element)).toHaveLength(0);
+		});
+
+		it('enforces exclusive bounds on numeric strings', () => {
+			const element = createElement({
+				baseType: 'decimal',
+				constraints: { minExclusive: 0, maxExclusive: 10 },
+			});
+
+			expect(validateValue('0', element)).toHaveLength(1);
+			expect(validateValue('10', element)).toHaveLength(1);
+			expect(validateValue('0.1', element)).toHaveLength(0);
+			expect(validateValue('9.99', element)).toHaveLength(0);
+		});
+
+		it('does not apply string facets to numeric types', () => {
+			// maxLength on an int should not silently police digit count.
+			const element = createElement({
+				baseType: 'int',
+				constraints: { maxLength: 2 },
+			});
+
+			expect(validateValue('12345', element)).toHaveLength(0);
+		});
+	});
+
 	describe('range validation (inclusive)', () => {
 		it('should pass when number is within range', () => {
 			const element = createElement({
