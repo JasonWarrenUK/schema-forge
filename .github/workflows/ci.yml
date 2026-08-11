@@ -60,8 +60,14 @@ jobs:
         run: |
           base="origin/${{ github.base_ref }}"
 
+          # The two ranges differ deliberately. Commit reachability is a
+          # two-dot question: which commits does this branch add. The file
+          # diff is a three-dot question, measured from the merge base, so
+          # the answer does not change when main moves underneath. Two dots
+          # here would compare branch tips and fail a PR that did add an
+          # entry, whenever main independently landed the same content.
           visible=$(git log --format='%s' "$base"..HEAD | grep -cE '^(feat|fix)(\(.+\))?!?:' || true)
-          touched=$(git diff --name-only "$base"..HEAD | grep -cx 'CHANGELOG.md' || true)
+          touched=$(git diff --name-only "$base"...HEAD | grep -cx 'CHANGELOG.md' || true)
 
           if [ "$visible" -gt 0 ] && [ "$touched" -eq 0 ]; then
             echo "::error file=CHANGELOG.md::${visible} feat/fix commit(s) since ${base}, but CHANGELOG.md is untouched. Add an entry under ## [Unreleased], or relabel the commits if the change is not user-visible."
