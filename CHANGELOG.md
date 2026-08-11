@@ -8,6 +8,8 @@ While the version is below 1.0.0, breaking changes ship in minor releases.
 
 ## [Unreleased]
 
+## [0.3.0]
+
 ### Changed
 
 - **`RawXsdComplexType` models particles instead of `unknown`.** The
