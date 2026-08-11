@@ -77,6 +77,51 @@ export const enumerationType = `<?xml version="1.0" encoding="utf-8"?>
   </xs:element>
 </xs:schema>`;
 
+// Nested compositors, to pin the shape fast-xml-parser actually produces.
+// Root holds a sequence carrying an element, a repeating choice and a group
+// reference; the choice holds two sibling sequences, which is the position
+// where the parser produces an array.
+export const nestedParticles = `<?xml version="1.0" encoding="utf-8"?>
+<xs:schema targetNamespace="http://test.example.com/2025"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:group name="SharedGroup">
+    <xs:sequence>
+      <xs:element name="Shared" type="xs:string" />
+    </xs:sequence>
+  </xs:group>
+  <xs:element name="Root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Direct" type="xs:string" />
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+          <xs:element name="Either" type="xs:string" />
+          <xs:sequence>
+            <xs:element name="FirstBranch" type="xs:string" />
+          </xs:sequence>
+          <xs:sequence>
+            <xs:element name="SecondBranch" type="xs:string" />
+          </xs:sequence>
+        </xs:choice>
+        <xs:group ref="SharedGroup" minOccurs="1" />
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
+// XSD whose root uses xs:all, which admits only xs:element in XSD 1.0
+export const allParticle = `<?xml version="1.0" encoding="utf-8"?>
+<xs:schema targetNamespace="http://test.example.com/2025"
+            xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="Root">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="A" type="xs:string" />
+        <xs:element name="B" type="xs:string" />
+      </xs:all>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>`;
+
 // Expected namespace for test fixtures
 export const expectedNamespace = 'http://test.example.com/2025';
 
