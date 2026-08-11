@@ -35,3 +35,34 @@ jobs:
 
       - name: Test
         run: bun test
+
+  changelog:
+    name: Changelog updated
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # The check compares against the base branch, which shallow
+          # clones do not contain.
+          fetch-depth: 0
+
+      # A feat or fix is by definition user-visible, so it belongs in the
+      # changelog. Chores, docs, tests and refactors do not. This only
+      # catches a missing entry: whether the entry is any good is a
+      # judgement no script can make.
+      - name: Require a changelog entry for user-visible changes
+        run: |
+          base="origin/${{ github.base_ref }}"
+
+          visible=$(git log --format='%s' "$base"..HEAD | grep -cE '^(feat|fix)(\(.+\))?!?:' || true)
+          touched=$(git diff --name-only "$base"..HEAD | grep -cx 'CHANGELOG.md' || true)
+
+          if [ "$visible" -gt 0 ] && [ "$touched" -eq 0 ]; then
+            echo "::error file=CHANGELOG.md::${visible} feat/fix commit(s) since ${base}, but CHANGELOG.md is untouched. Add an entry under ## [Unreleased], or relabel the commits if the change is not user-visible."
+            exit 1
+          fi
+
+          echo "${visible} user-visible commit(s), CHANGELOG.md touched ${touched} time(s)."
