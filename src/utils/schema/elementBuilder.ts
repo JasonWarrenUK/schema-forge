@@ -58,7 +58,6 @@ function assertSupportedElement(rawElement: RawXsdElement, parentPath: string): 
 			}
 		}
 	}
-
 }
 
 /**

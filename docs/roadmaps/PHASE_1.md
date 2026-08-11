@@ -10,9 +10,11 @@ Everything deferred while schema-forge was being extracted, packaged and correct
 
 **Goal:** Walk XSD content models generically so compositors other than `xs:sequence` carry their children.
 
-- [ ] **1PM.1** — Widen `RawXsdComplexType` to model `xs:choice`, `xs:all` and `xs:group` as real shapes rather than `unknown` placeholders
-- [ ] **1PM.2** — Extract a particle walker from `buildElement` so content models are traversed generically _(blocked — depends on 1PM.1)_
+- [x] **1PM.1** — Widen `RawXsdComplexType` to model `xs:choice`, `xs:all` and `xs:group` as real shapes rather than `unknown` placeholders
+- [ ] **1PM.2** — Extract a particle walker from `buildElement` so content models are traversed generically
   - Note: `elementBuilder.ts:58` is the hardcoded read. This refactor is what makes M1 and M2 cheap; do it once and properly.
+  - Note: `parseXsd` runs without `preserveOrder`, so siblings collapse into keys and the order of an `xs:element` followed by an `xs:choice` is unrecoverable. The walker can traverse each key but cannot reconstruct schema order across keys. Constrains 1PM.4, since the generator emits children in schema order.
+  - Note: a particle under `xs:complexType` is always a single value, since XSD permits at most one there; a particle nested inside another is `T | T[]`. The types encode this distinction.
 - [ ] **1PM.3** — Support `xs:choice`, setting child cardinality min to 0 _(blocked — depends on 1PM.2)_
 - [ ] **1PM.4** — Support `xs:all`, which permits its children in any order _(blocked — depends on 1PM.2)_
   - Note: Interacts with the generator, which currently emits children in schema order.
@@ -199,6 +201,7 @@ graph LR
 	6ST.4 --> 6ST.6
 	6ST.5 -.-> M6
 	6ST.6 --> M6
-	class 1PM.1,3AT.1,4MD.1,5CH.1,5CH.3,5CH.4,5CH.5 todo
-	class 1PM.2,1PM.3,1PM.4,1PM.5,1PM.6,2NT.1,2NT.2,2NT.3,2NT.4,2NT.5,2NT.6,3AT.2,3AT.3,3AT.4,3AT.5,3AT.6,4MD.2,4MD.3,4MD.4,4MD.5,5CH.2,6ST.1,6ST.2,6ST.3,6ST.4,6ST.5,6ST.6 blocked
+	class 1PM.1 done
+	class 1PM.2,3AT.1,4MD.1,5CH.1,5CH.3,5CH.4,5CH.5 todo
+	class 1PM.3,1PM.4,1PM.5,1PM.6,2NT.1,2NT.2,2NT.3,2NT.4,2NT.5,2NT.6,3AT.2,3AT.3,3AT.4,3AT.5,3AT.6,4MD.2,4MD.3,4MD.4,4MD.5,5CH.2,6ST.1,6ST.2,6ST.3,6ST.4,6ST.5,6ST.6 blocked
 ```

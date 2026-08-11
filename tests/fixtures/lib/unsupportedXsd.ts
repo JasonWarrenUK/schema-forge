@@ -28,6 +28,28 @@ export const withAll = wrap(`
 		</xs:complexType>
 	</xs:element>`);
 
+/* The guard inspects the complexType's own keys, so the group reference sits
+   directly under it. A group nested inside a sequence is not caught today;
+   catching that is 1PM.5's job. */
+export const withGroup = wrap(`
+	<xs:group name="SharedGroup">
+		<xs:sequence>
+			<xs:element name="Shared" type="xs:string"/>
+		</xs:sequence>
+	</xs:group>
+	<xs:element name="Root">
+		<xs:complexType>
+			<xs:group ref="SharedGroup"/>
+		</xs:complexType>
+	</xs:element>`);
+
+export const withAny = wrap(`
+	<xs:element name="Root">
+		<xs:complexType>
+			<xs:any namespace="##other" processContents="lax"/>
+		</xs:complexType>
+	</xs:element>`);
+
 export const withAttribute = wrap(`
 	<xs:element name="Root">
 		<xs:complexType>

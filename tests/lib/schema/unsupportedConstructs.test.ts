@@ -12,6 +12,8 @@ describe('unsupported XSD constructs', () => {
 	it.each([
 		['xs:choice', fixtures.withChoice],
 		['xs:all', fixtures.withAll],
+		['xs:group', fixtures.withGroup],
+		['xs:any', fixtures.withAny],
 		['xs:attribute', fixtures.withAttribute],
 		['xs:complexContent', fixtures.withComplexContent],
 		['xs:simpleContent', fixtures.withSimpleContent],

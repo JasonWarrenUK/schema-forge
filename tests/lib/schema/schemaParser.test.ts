@@ -132,6 +132,76 @@ describe('extractNamedComplexTypes', () => {
 	});
 });
 
+/**
+ * These assert the shape fast-xml-parser actually produces, so they pin the
+ * particle types to real output rather than to the XSD spec as imagined. They
+ * compile only if the types are right, which is the point: 1PM.1 is a
+ * types-only change, so the compiler is half the test.
+ */
+describe('particle shapes', () => {
+	it('exposes a nested xs:choice with its own occurs attributes', () => {
+		const parsed = parseXsd(fixtures.nestedParticles);
+		const sequence = extractElements(parsed)[0]['xs:complexType']?.['xs:sequence'];
+
+		const choice = sequence?.['xs:choice'];
+		const single = Array.isArray(choice) ? choice[0] : choice;
+
+		expect(single).toBeDefined();
+		expect(single?.['@_minOccurs']).toBe('0');
+		expect(single?.['@_maxOccurs']).toBe('unbounded');
+	});
+
+	it('parses sibling sequences inside a choice as an array', () => {
+		const parsed = parseXsd(fixtures.nestedParticles);
+		const sequence = extractElements(parsed)[0]['xs:complexType']?.['xs:sequence'];
+
+		const choice = sequence?.['xs:choice'];
+		const single = Array.isArray(choice) ? choice[0] : choice;
+		const branches = single?.['xs:sequence'];
+
+		expect(Array.isArray(branches)).toBe(true);
+		expect(branches).toHaveLength(2);
+	});
+
+	/* A complexType admits at most one particle child, so this position is a
+	   single value. Widening it to an array would break every existing read. */
+	it('parses the particle under a complexType as a single value, not an array', () => {
+		const parsed = parseXsd(fixtures.nestedParticles);
+		const complexType = extractElements(parsed)[0]['xs:complexType'];
+
+		expect(Array.isArray(complexType?.['xs:sequence'])).toBe(false);
+		expect(complexType?.['xs:sequence']?.['xs:element']).toBeDefined();
+	});
+
+	it('distinguishes an xs:group reference from a definition', () => {
+		const parsed = parseXsd(fixtures.nestedParticles);
+		const sequence = extractElements(parsed)[0]['xs:complexType']?.['xs:sequence'];
+
+		const reference = sequence?.['xs:group'];
+		const singleReference = Array.isArray(reference) ? reference[0] : reference;
+
+		expect(singleReference?.['@_ref']).toBe('SharedGroup');
+		expect(singleReference?.['@_name']).toBeUndefined();
+
+		const definitions = parsed['xs:schema']['xs:group'];
+		const definition = Array.isArray(definitions) ? definitions[0] : definitions;
+
+		expect(definition?.['@_name']).toBe('SharedGroup');
+		expect(definition?.['@_ref']).toBeUndefined();
+		expect(definition?.['xs:sequence']?.['xs:element']).toBeDefined();
+	});
+
+	it('exposes the children of an xs:all', () => {
+		const parsed = parseXsd(fixtures.allParticle);
+		const all = extractElements(parsed)[0]['xs:complexType']?.['xs:all'];
+
+		const children = all?.['xs:element'];
+		const list = Array.isArray(children) ? children : children ? [children] : [];
+
+		expect(list.map((child) => child['@_name'])).toEqual(['A', 'B']);
+	});
+});
+
 describe('inline type handling', () => {
 	it('should parse element with inline simpleType restriction', () => {
 		const parsed = parseXsd(fixtures.inlineSimpleType);
