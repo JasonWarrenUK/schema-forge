@@ -39,16 +39,59 @@ export interface RawXsdSimpleType {
 	};
 }
 
+/** minOccurs/maxOccurs carried by a particle itself rather than by its children. */
+export interface RawXsdOccurs {
+	'@_minOccurs'?: string;
+	'@_maxOccurs'?: string;
+}
+
+/** The children a compositor may carry.
+ *
+ * The parser runs without preserveOrder, so siblings collapse into keys and the
+ * relative order of an xs:element and a following xs:choice is not recoverable
+ * from this shape. A walker can traverse each key but cannot reconstruct schema
+ * order across different keys.
+ */
+export interface RawXsdParticleChildren {
+	'xs:element'?: RawXsdElement | RawXsdElement[];
+	'xs:sequence'?: RawXsdSequence | RawXsdSequence[];
+	'xs:choice'?: RawXsdChoice | RawXsdChoice[];
+	'xs:group'?: RawXsdGroup | RawXsdGroup[];
+	/* Wildcards are never scheduled for support, so they are modelled only far
+	   enough to be detected. */
+	'xs:any'?: unknown;
+}
+
+export interface RawXsdSequence extends RawXsdOccurs, RawXsdParticleChildren {}
+
+export interface RawXsdChoice extends RawXsdOccurs, RawXsdParticleChildren {}
+
+/** xs:all admits only xs:element in XSD 1.0, so it carries no compositors. */
+export interface RawXsdAll extends RawXsdOccurs {
+	'xs:element'?: RawXsdElement | RawXsdElement[];
+}
+
+/** Both a global group definition (@_name plus a particle) and a reference to
+ *  one (@_ref plus occurs). XSD gives the two the same element name, so the
+ *  parser gives them the same key. */
+export interface RawXsdGroup extends RawXsdOccurs {
+	'@_name'?: string;
+	'@_ref'?: string;
+	'xs:sequence'?: RawXsdSequence;
+	'xs:choice'?: RawXsdChoice;
+	'xs:all'?: RawXsdAll;
+}
+
 export interface RawXsdComplexType {
 	'@_name'?: string;
-	'xs:sequence'?: {
-		'xs:element'?: RawXsdElement | RawXsdElement[];
-	};
-	/* Content models schema-forge does not build. Modelled so they can be
+	/* At most one particle child is permitted here, so unlike nested positions
+	   these are single values rather than T | T[]. */
+	'xs:sequence'?: RawXsdSequence;
+	'xs:choice'?: RawXsdChoice;
+	'xs:all'?: RawXsdAll;
+	'xs:group'?: RawXsdGroup;
+	/* Constructs schema-forge does not build. Modelled only far enough to be
 	   detected and reported rather than silently ignored. */
-	'xs:choice'?: unknown;
-	'xs:all'?: unknown;
-	'xs:group'?: unknown;
 	'xs:any'?: unknown;
 	'xs:complexContent'?: unknown;
 	'xs:simpleContent'?: unknown;
@@ -66,6 +109,7 @@ export interface ParsedXsdRoot {
 		'xs:element'?: RawXsdElement | RawXsdElement[];
 		'xs:simpleType'?: RawXsdSimpleType | RawXsdSimpleType[];
 		'xs:complexType'?: RawXsdComplexType | RawXsdComplexType[];
+		'xs:group'?: RawXsdGroup | RawXsdGroup[];
 		/* Multi-document schemas. Detected so they can be reported: resolving
 		   them needs a file resolver, which buildSchemaRegistry does not take. */
 		'xs:include'?: unknown;

@@ -46,6 +46,12 @@ export type {
 	RawXsdElement,
 	RawXsdSimpleType,
 	RawXsdComplexType,
+	RawXsdOccurs,
+	RawXsdParticleChildren,
+	RawXsdSequence,
+	RawXsdChoice,
+	RawXsdAll,
+	RawXsdGroup,
 	ParsedXsdRoot,
 } from './schema/schemaParser';
 
