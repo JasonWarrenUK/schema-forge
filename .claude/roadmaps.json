@@ -1,0 +1,279 @@
+[
+	{
+		"name": "PHASE_1",
+		"path": "docs/roadmaps/PHASE_1.md",
+		"archived": false,
+		"externalGates": [],
+		"milestones": [
+			{
+				"id": "M1",
+				"name": "Particle model",
+				"goal": "Walk XSD content models generically so compositors other than xs:sequence carry their children.",
+				"tasks": [
+					{
+						"id": "1PM.1",
+						"description": "Widen RawXsdComplexType to model xs:choice, xs:all and xs:group as real shapes rather than unknown placeholders",
+						"status": "todo",
+						"dependsOn": []
+					},
+					{
+						"id": "1PM.2",
+						"description": "Extract a particle walker from buildElement so content models are traversed generically instead of reading xs:complexType.xs:sequence directly",
+						"status": "blocked",
+						"dependsOn": ["1PM.1"],
+						"notes": "elementBuilder.ts:58 is the hardcoded read. This refactor is what makes M1 and M2 cheap; do it once and properly."
+					},
+					{
+						"id": "1PM.3",
+						"description": "Support xs:choice, setting child cardinality min to 0 since only one branch is present in any instance",
+						"status": "blocked",
+						"dependsOn": ["1PM.2"]
+					},
+					{
+						"id": "1PM.4",
+						"description": "Support xs:all, which permits its children in any order",
+						"status": "blocked",
+						"dependsOn": ["1PM.2"],
+						"notes": "Interacts with the generator, which currently emits children in schema order. Decide whether xs:all relaxes that or keeps declaration order."
+					},
+					{
+						"id": "1PM.5",
+						"description": "Support xs:group definitions and references, expanding the referenced particle in place",
+						"status": "blocked",
+						"dependsOn": ["1PM.2"]
+					},
+					{
+						"id": "1PM.6",
+						"description": "Remove the xs:choice, xs:all and xs:group guards from assertSupportedElement and replace their tests with behavioural ones",
+						"status": "blocked",
+						"dependsOn": ["1PM.3", "1PM.4", "1PM.5"],
+						"notes": "tests/lib/schema/unsupportedConstructs.test.ts currently asserts these throw. Each construct moves from a throwing test to a building-and-generating test."
+					}
+				]
+			},
+			{
+				"id": "M2",
+				"name": "Named type resolution",
+				"goal": "Resolve named complex types, inheritance and element references so idiomatic XSD builds correctly.",
+				"tasks": [
+					{
+						"id": "2NT.1",
+						"description": "Build a named complex type map in registryBuilder from the existing but uncalled extractNamedComplexTypes",
+						"status": "blocked",
+						"dependsOn": ["1PM.2"],
+						"notes": "extractNamedComplexTypes exists in schemaParser.ts and is exported from the barrel, but has no production call site. resolveBaseType only consults simple types."
+					},
+					{
+						"id": "2NT.2",
+						"description": "Expand a named complex type reference into its particle, carrying a visited-type set so self-referential types terminate",
+						"status": "blocked",
+						"dependsOn": ["2NT.1"],
+						"notes": "Recursive types are legal XSD and would otherwise hang. This is the most idiomatic XSD construct the library rejects, so it is the highest-value task in the phase."
+					},
+					{
+						"id": "2NT.3",
+						"description": "Support xs:complexContent with xs:extension, merging inherited members with locally declared ones",
+						"status": "blocked",
+						"dependsOn": ["2NT.2"]
+					},
+					{
+						"id": "2NT.4",
+						"description": "Support xs:simpleContent, where an element carries both text and attributes",
+						"status": "blocked",
+						"dependsOn": ["2NT.2"],
+						"softDependsOn": ["3AT.2"],
+						"notes": "Only fully useful once attributes are modelled: simpleContent's whole purpose is text plus attributes."
+					},
+					{
+						"id": "2NT.5",
+						"description": "Resolve xs:element ref against globally declared elements, stripping namespace prefixes",
+						"status": "blocked",
+						"dependsOn": ["1PM.2"],
+						"notes": "Also requires relaxing the multi-root guard in registryBuilder, which currently throws before buildElement runs when a ref'd element is declared top-level."
+					},
+					{
+						"id": "2NT.6",
+						"description": "Replace the named complexType, extension, simpleContent and ref throwing guards with behavioural tests",
+						"status": "blocked",
+						"dependsOn": ["2NT.3", "2NT.4", "2NT.5"]
+					}
+				]
+			},
+			{
+				"id": "M3",
+				"name": "Attributes",
+				"goal": "Carry XSD attributes through the registry and into generated XML.",
+				"tasks": [
+					{
+						"id": "3AT.1",
+						"description": "Add an attributes field to SchemaElement with its own name, type, constraints and use",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "Independent of the particle work: attributes hang off complexType rather than the content model. fast-xml-parser already surfaces them, since ignoreAttributes is false; buildElement simply discards them."
+					},
+					{
+						"id": "3AT.2",
+						"description": "Parse xs:attribute declarations, including use=\"required\" and default values",
+						"status": "blocked",
+						"dependsOn": ["3AT.1"]
+					},
+					{
+						"id": "3AT.3",
+						"description": "Support xs:attributeGroup definitions and references",
+						"status": "blocked",
+						"dependsOn": ["3AT.2"]
+					},
+					{
+						"id": "3AT.4",
+						"description": "Emit attributes in generated XML, escaped with escapeXmlAttribute",
+						"status": "blocked",
+						"dependsOn": ["3AT.2"],
+						"notes": "escapeXmlAttribute already exists from the 0.2.0 work. The open tag in xmlGenerator has no attribute slot yet."
+					},
+					{
+						"id": "3AT.5",
+						"description": "Validate attribute values against their own constraints, and report a missing required attribute",
+						"status": "blocked",
+						"dependsOn": ["3AT.2"]
+					},
+					{
+						"id": "3AT.6",
+						"description": "Decide and document how a mapping addresses an attribute path, then support it in mapCsvToSchema",
+						"status": "blocked",
+						"dependsOn": ["3AT.4"],
+						"notes": "Open design question: an @ prefix (Root.Child.@id) is the XPath-flavoured convention and reads unambiguously against element paths."
+					}
+				]
+			},
+			{
+				"id": "M4",
+				"name": "Multi-document schemas",
+				"goal": "Resolve xs:include and xs:import so schemas split across files can be loaded.",
+				"tasks": [
+					{
+						"id": "4MD.1",
+						"description": "Add an optional resolve(location) => string callback to SchemaRegistryOptions",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "Recommended shape: an injected synchronous resolver. It keeps buildSchemaRegistry synchronous so no existing call site breaks, keeps the package runtime-agnostic (the caller decides between fs, a bundled map or a pre-populated cache), and leaves room to add an async variant later. Going sync-to-async is additive; async-to-sync is impossible. Cost: a caller with only an async source must pre-populate a map."
+					},
+					{
+						"id": "4MD.2",
+						"description": "Resolve xs:include, merging the included document into the including one under the same target namespace",
+						"status": "blocked",
+						"dependsOn": ["4MD.1"]
+					},
+					{
+						"id": "4MD.3",
+						"description": "Resolve xs:import, tracking the foreign target namespace per document",
+						"status": "blocked",
+						"dependsOn": ["4MD.2"],
+						"notes": "Harder than include: types from an imported document belong to a different namespace, so the registry needs to disambiguate rather than merging blindly."
+					},
+					{
+						"id": "4MD.4",
+						"description": "Detect circular includes and report the cycle rather than recursing",
+						"status": "blocked",
+						"dependsOn": ["4MD.2"]
+					},
+					{
+						"id": "4MD.5",
+						"description": "Throw a clear error when a document needs resolution but no resolver was supplied",
+						"status": "blocked",
+						"dependsOn": ["4MD.1"],
+						"notes": "Preserves the 0.2.0 principle: fail loudly rather than silently producing a registry with content missing."
+					}
+				]
+			},
+			{
+				"id": "M5",
+				"name": "Coverage and hygiene",
+				"goal": "Test everything the package exports and modernise the conventions the code still carries.",
+				"tasks": [
+					{
+						"id": "5CH.1",
+						"description": "Test validateRows with a synthetic MappingConfig, replacing the ILR-coupled fixtures that blocked porting it",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "The only exported function with no test coverage at all. Its Iris tests depended on facAirtableMapping and createAimSkipFilter."
+					},
+					{
+						"id": "5CH.2",
+						"description": "Cover the remaining untested exports: schemaCompatibility, csvParser error paths, and the transform registry accessors",
+						"status": "blocked",
+						"dependsOn": ["5CH.1"]
+					},
+					{
+						"id": "5CH.3",
+						"description": "Enable noUncheckedIndexedAccess and fix the resulting indexed-access errors",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "Deliberately deferred in 0.1.0 as too large. Measured since: 40 errors, mostly indexed access in columnMapper and elementBuilder. Each one is a real spot where an out-of-bounds index yields undefined at runtime."
+					},
+					{
+						"id": "5CH.4",
+						"description": "Resolve the three TODO markers in schemaTypes.ts proposing that createIssue, createEmptyResult and computeResultStats move to a util module",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "Either do the extraction or delete the markers. They have outlived the code they annotate."
+					},
+					{
+						"id": "5CH.5",
+						"description": "Split the Node-only parseCSV from the pure parseCSVContent so the package stops importing fs/promises at module scope",
+						"status": "todo",
+						"dependsOn": [],
+						"notes": "csvParser.ts:14 is the only Node coupling in the library. Everything else is computation over strings and plain objects, so the package would otherwise run anywhere."
+					}
+				]
+			},
+			{
+				"id": "M6",
+				"name": "1.0",
+				"goal": "Commit to a stable public API and release 1.0.0.",
+				"tasks": [
+					{
+						"id": "6ST.1",
+						"description": "Review the public barrel and decide whether the four schema construction helpers belong in the supported API",
+						"status": "blocked",
+						"dependsOn": ["M1", "M2", "M3", "M4"],
+						"notes": "parseCardinality, extractConstraints, buildElement, populateLookupMaps and the typeResolver pair were exported at 0.1.0 so the ported unit tests could reach them. 1.0 freezes whatever stays."
+					},
+					{
+						"id": "6ST.2",
+						"description": "Remove the deprecated isoDate and isoDateTime aliases",
+						"status": "blocked",
+						"dependsOn": ["6ST.1"],
+						"notes": "Introduced in 0.2.0 alongside passthroughDate and passthroughDateTime. A major bump is the moment to drop them."
+					},
+					{
+						"id": "6ST.3",
+						"description": "Update the README's supported-XSD table and limitations section to match what the library now handles",
+						"status": "blocked",
+						"dependsOn": ["6ST.1"],
+						"notes": "The limitations list shrinks to whatever M1 to M4 did not cover."
+					},
+					{
+						"id": "6ST.4",
+						"description": "Write an API reference covering every export, its signature and its return shape",
+						"status": "blocked",
+						"dependsOn": ["6ST.1"],
+						"softDependsOn": ["5CH.2"]
+					},
+					{
+						"id": "6ST.5",
+						"description": "Add a runnable examples directory built on the existing test fixtures",
+						"status": "blocked",
+						"dependsOn": ["6ST.3"],
+						"softMilestone": true
+					},
+					{
+						"id": "6ST.6",
+						"description": "Release 1.0.0 with a CHANGELOG entry and a stated semver commitment",
+						"status": "blocked",
+						"dependsOn": ["M5", "6ST.2", "6ST.3", "6ST.4"]
+					}
+				]
+			}
+		]
+	}
+]
