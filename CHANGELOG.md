@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 While the version is below 1.0.0, breaking changes ship in minor releases.
 
+## [Unreleased]
+
+### Changed
+
+- **`RawXsdComplexType` models particles instead of `unknown`.** The
+  `xs:choice`, `xs:all` and `xs:group` fields, plus the inline shape of
+  `xs:sequence`, are now the real interfaces `RawXsdChoice`, `RawXsdAll`,
+  `RawXsdGroup` and `RawXsdSequence`, all exported. This narrows four fields
+  on a publicly exported type: reading them still compiles, but assigning an
+  arbitrary value into one no longer does. These carry raw parser output, so
+  no realistic consumer constructs them by hand.
+
+  Two distinctions the types now encode, both confirmed against
+  fast-xml-parser rather than assumed from the XSD spec. A particle directly
+  under `xs:complexType` is a single value, since XSD permits at most one
+  there, while a particle nested inside another is `T | T[]`. And
+  `ParsedXsdRoot` gained an `xs:group` field for top-level definitions, which
+  the parser already emitted with nothing to describe it.
+
+  No behaviour changed. Every unsupported construct throws exactly as before.
+
 ## [0.2.0]
 
 A correctness release. Every defect fixed here was silent: the library
