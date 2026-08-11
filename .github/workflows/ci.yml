@@ -39,6 +39,9 @@ jobs:
   changelog:
     name: Changelog updated
     runs-on: ubuntu-latest
+    # Load-bearing, not belt-and-braces: the workflow also runs on push to
+    # main, where github.base_ref is empty and the diff below would resolve
+    # against the literal ref "origin/" and fail.
     if: github.event_name == 'pull_request'
 
     steps:
