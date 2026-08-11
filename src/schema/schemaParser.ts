@@ -66,7 +66,14 @@ export interface RawXsdSequence extends RawXsdOccurs, RawXsdParticleChildren {}
 
 export interface RawXsdChoice extends RawXsdOccurs, RawXsdParticleChildren {}
 
-/** xs:all admits only xs:element in XSD 1.0, so it carries no compositors. */
+/** xs:all admits only xs:element in XSD 1.0, so it carries no compositors.
+ *
+ * This describes valid XSD, not what the parser can hand you: fast-xml-parser
+ * validates nothing and will happily parse an xs:group nested inside an xs:all.
+ * Modelling that would put an impossible case into every downstream read, so a
+ * malformed schema yields a runtime key this type says cannot exist. Nothing
+ * reaches that state today, since assertSupportedElement throws on xs:all first.
+ */
 export interface RawXsdAll extends RawXsdOccurs {
 	'xs:element'?: RawXsdElement | RawXsdElement[];
 }
